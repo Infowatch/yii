@@ -449,6 +449,7 @@ class CJoinElement
 				$query->selects[] = $this->getColumnSelect($this->relation->select);
 				$query->selects[] = $this->getRelationsKeys();
 				$this->buildQuery($query);
+				$query->conditions[] = $this->relation->on;
 				$query->conditions[] = $this->buildConditions();
 			} else {
 				$query=new CJoinQuery($this->_parent);

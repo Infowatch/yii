@@ -451,6 +451,7 @@ class CJoinElement
 				$this->buildQuery($query);
 				$query->conditions[] = $this->relation->on;
 				$query->conditions[] = $this->buildConditions();
+				$query->orders[] = $this->relation->order;
 			} else {
 				$query=new CJoinQuery($this->_parent);
 				$this->_joined=true;

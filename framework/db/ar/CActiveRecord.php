@@ -458,6 +458,15 @@ abstract class CActiveRecord extends CModel
 	{
 	}
 
+    /**
+     * Ключ табличного пространтсва
+     * Если задан, то по нему будет происходить частичная выборка relation'ов
+     * @return string
+     */
+    public function tableSpaceKey()
+    {
+    }
+
 	/**
 	 * This method should be overridden to declare related objects.
 	 *

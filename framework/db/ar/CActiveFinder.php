@@ -443,39 +443,72 @@ class CJoinElement
 		elseif(!$this->_joined && !empty($this->_parent->records)) // not joined before
 		{
 			if (empty($this->relation->through) && count((array)$this->relation->foreignKey) === count((array)$this->_parent->_pkAlias)) {
-				$query            = new CJoinQuery($this);
-				$this->_joined    = true;
-				$query->selects   = array(); // reset to not receive the extra keys
-				$query->selects[] = $this->getColumnSelect($this->relation->select);
-				$query->selects[] = $this->getRelationsKeys();
-				$this->buildQuery($query);
-				$query->conditions[] = $this->relation->on;
-				$query->conditions[] = $this->buildConditions();
-				$query->orders[] = $this->relation->order;
+                if ($this->model->tableSpaceKey()) {
+                    $this->queryWithGroupKey($this->model->tableSpaceKey());
+                } else {
+                    $query = new CJoinQuery($this);
+                    $this->_joined = true;
+                    $query->selects = []; // reset to not receive the extra keys
+                    $query->selects[] = $this->getColumnSelect($this->relation->select);
+                    $query->selects[] = $this->getRelationsKeys();
+                    $this->buildQuery($query);
+                    $query->conditions[] = $this->relation->on;
+                    $query->conditions[] = $this->buildConditions();
+                    $query->orders[] = $this->relation->order;
+                    $this->_parent->runQuery($query);
+                }
 			} else {
 				$query=new CJoinQuery($this->_parent);
 				$this->_joined=true;
 				$query->join($this);
 				$this->buildQuery($query);
-			}
-			$this->_parent->runQuery($query);
+                $this->_parent->runQuery($query);
+            }
 		}
 
-		foreach($this->children as $child) // find recursively
-			$child->find();
+        foreach ($this->children as $child) // find recursively
+            $child->find();
 
-		foreach($this->stats as $stat)
-			$stat->query();
-	}
+        foreach ($this->stats as $stat)
+            $stat->query();
+    }
 
-	public function buildConditions()
+    private function queryWithGroupKey($groupKey)
+    {
+        if (is_array($this->_parent->_table->primaryKey)) {
+            $values = array_keys($this->_parent->records);
+            $groupingValues = [];
+            foreach ($values as $value) {
+                $value = unserialize($value);
+                $groupingValues[$value[$groupKey]][] = $value;
+            }
+        }
+
+        $query            = new CJoinQuery($this);
+        $this->_joined    = true;
+        $query->selects   = []; // reset to not receive the extra keys
+        $query->selects[] = $this->getColumnSelect($this->relation->select);
+        $query->selects[] = $this->getRelationsKeys();
+        $this->buildQuery($query);
+        $query->orders[]     = $this->relation->order;
+
+        foreach ($groupingValues as $groupingValue) {
+            $query->conditions = [];
+            $query->conditions[] = $this->relation->on;
+            $query->conditions[] = $this->buildConditions($groupingValue);
+            $this->_parent->runQuery($query);
+        }
+    }
+
+	private function buildConditions($values = null)
 	{
-        $values=array_keys($this->_parent->records);
-        if(is_array($this->_parent->_table->primaryKey))
-        {
-            foreach($values as &$value)
-                $value=unserialize($value);
-            unset($value);
+	    if (empty($values)) {
+            $values = array_keys($this->_parent->records);
+            if (is_array($this->_parent->_table->primaryKey)) {
+                foreach ($values as &$value)
+                    $value = unserialize($value);
+                unset($value);
+            }
         }
         if (is_array($this->_parent->_table->primaryKey)) {
             $keys = array();
@@ -493,7 +526,7 @@ class CJoinElement
         return $this->_builder->createInCondition($this->_table,$keys,$values,$this->getColumnPrefix());
 	}
 
-	public function getRelationsKeys()
+	private function getRelationsKeys()
 	{
 		$fields = array();
 		$foreignKey      = $this->relation->foreignKey;

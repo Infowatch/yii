@@ -475,15 +475,19 @@ class CJoinElement
 
     private function queryWithGroupKey($groupKey)
     {
+        $groupingValues = [];
         if (is_array($this->_parent->_table->primaryKey)) {
             $values = array_keys($this->_parent->records);
-            $groupingValues = [];
             foreach ($values as $value) {
-                $value = unserialize($value);
-                $groupingValues[$value[$groupKey]][] = $value;
+                $value         = unserialize($value);
+                $groupKeyValue = $value[$groupKey];
+                unset($value[$groupKey]);
+                if (count($value) === 1) {
+                    $value = current($value);
+                }
+                $groupingValues[$groupKeyValue][] = $value;
             }
         }
-
         $query            = new CJoinQuery($this);
         $this->_joined    = true;
         $query->selects   = []; // reset to not receive the extra keys
@@ -492,15 +496,27 @@ class CJoinElement
         $this->buildQuery($query);
         $query->orders[]     = $this->relation->order;
 
-        foreach ($groupingValues as $groupingValue) {
+        $unionQueries = [];
+        $unionParams = [];
+        foreach ($groupingValues as $groupingKeyValue => $groupingValue) {
             $query->conditions = [];
             $query->conditions[] = $this->relation->on;
-            $query->conditions[] = $this->buildConditions($groupingValue);
-            $this->_parent->runQuery($query);
+            $query->conditions[] = $this->_builder->createInCondition($this->_table, $groupKey, (array)$groupingKeyValue, $this->getColumnPrefix());
+            $query->conditions[] = $this->buildConditions($groupingValue, $groupKey);
+
+            $command = $query->createCommand($this->_builder);
+            $unionQueries[] = $command->getText();
+            $unionParams = array_merge($unionParams, $command->params);
+        }
+
+        $unionCommand = $this->model->dbConnection->createCommand(implode(' UNION ALL ', $unionQueries));
+        $unionCommand->params = $unionParams;
+        foreach($unionCommand->queryAll() as $row) {
+            $this->_parent->populateRecord($query, $row);
         }
     }
 
-	private function buildConditions($values = null)
+	private function buildConditions($values = null, $groupKey = null)
 	{
 	    if (empty($values)) {
             $values = array_keys($this->_parent->records);
@@ -521,6 +537,10 @@ class CJoinElement
             }
         } else {
             $keys = is_array($this->relation->foreignKey) ? key($this->relation->foreignKey) : $this->relation->foreignKey;
+        }
+
+        if ($groupKey && ($groupKeyIndex = array_search($groupKey, $keys)) !== false) {
+	        unset($keys[$groupKeyIndex]);
         }
 
         return $this->_builder->createInCondition($this->_table,$keys,$values,$this->getColumnPrefix());

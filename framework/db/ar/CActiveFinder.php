@@ -494,15 +494,24 @@ class CJoinElement
         $query->selects[] = $this->getColumnSelect($this->relation->select);
         $query->selects[] = $this->getRelationsKeys();
         $this->buildQuery($query);
-        $query->orders[]     = $this->relation->order;
 
         $unionQueries = [];
         $unionParams = [];
+        $groupingValuesCount = count($groupingValues);
+        $last = 0;
         foreach ($groupingValues as $groupingKeyValue => $groupingValue) {
             $query->conditions = [];
             $query->conditions[] = $this->relation->on;
             $query->conditions[] = $this->_builder->createInCondition($this->_table, $groupKey, (array)$groupingKeyValue, $this->getColumnPrefix());
             $query->conditions[] = $this->buildConditions($groupingValue, $groupKey);
+
+            if (++$last === $groupingValuesCount) {
+                if (array_key_exists($this->relation->order, $this->_columnAliases)) {
+                    $query->orders[] = $this->_columnAliases[$this->relation->order];
+                } else {
+                    $query->orders[] = $this->relation->order;
+                }
+            }
 
             $command = $query->createCommand($this->_builder);
             $unionQueries[] = $command->getText();

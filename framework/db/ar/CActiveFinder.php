@@ -494,33 +494,39 @@ class CJoinElement
         $query->selects[] = $this->getRelationsKeys();
         $this->buildQuery($query);
 
-        $unionQueries = [];
-        $unionParams = [];
         $groupingValuesCount = count($groupingValues);
-        $last = 0;
-        foreach ($groupingValues as $groupingKeyValue => $groupingValue) {
-            $query->conditions = [];
-            $query->conditions[] = $this->relation->on;
-            $query->conditions[] = $this->_builder->createInCondition($this->_table, $groupKey, (array)$groupingKeyValue, $this->getColumnPrefix());
-            $query->conditions[] = $this->buildConditions($groupingValue, $groupKey);
+        $MAX_UNION_COUNT     = $this->_builder->dbConnection->maxUnionCount() ?: 10;
 
-            if (++$last === $groupingValuesCount) {
-                if (array_key_exists($this->relation->order, $this->_columnAliases)) {
-                    $query->orders[] = $this->_columnAliases[$this->relation->order];
-                } else {
-                    $query->orders[] = $this->relation->order;
+        for ($i = 0; $i < $groupingValuesCount; $i += $MAX_UNION_COUNT) {
+            $last                     = 0;
+            $chunkGroupingValues      = array_slice($groupingValues, $i, $MAX_UNION_COUNT, true);
+            $chunkGroupingValuesCount = count($chunkGroupingValues);
+            $unionQueries             = [];
+            $unionParams              = [];
+            foreach ($chunkGroupingValues as $groupingKeyValue => $groupingValue) {
+                $query->conditions   = [];
+                $query->conditions[] = $this->relation->on;
+                $query->conditions[] = $this->_builder->createInCondition($this->_table, $groupKey, (array)$groupingKeyValue, $this->getColumnPrefix());
+                $query->conditions[] = $this->buildConditions($groupingValue, $groupKey);
+
+                if (++$last === $chunkGroupingValuesCount) {
+                    if (array_key_exists($this->relation->order, $this->_columnAliases)) {
+                        $query->orders[] = $this->_columnAliases[$this->relation->order];
+                    } else {
+                        $query->orders[] = $this->relation->order;
+                    }
                 }
+
+                $command        = $query->createCommand($this->_builder);
+                $unionQueries[] = $command->getText();
+                $unionParams    = array_merge($unionParams, $command->params);
             }
 
-            $command = $query->createCommand($this->_builder);
-            $unionQueries[] = $command->getText();
-            $unionParams = array_merge($unionParams, $command->params);
-        }
-
-        $unionCommand = $this->model->dbConnection->createCommand(implode(' UNION ALL ', $unionQueries));
-        $unionCommand->params = $unionParams;
-        foreach($unionCommand->queryAll() as $row) {
-            $this->_parent->populateRecord($query, $row);
+            $unionCommand         = $this->model->dbConnection->createCommand(implode(' UNION ALL ', $unionQueries));
+            $unionCommand->params = $unionParams;
+            foreach ($unionCommand->queryAll() as $row) {
+                $this->_parent->populateRecord($query, $row);
+            }
         }
     }
 

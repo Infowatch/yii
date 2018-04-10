@@ -442,7 +442,7 @@ class CJoinElement
 		}
 		elseif(!$this->_joined && !empty($this->_parent->records)) // not joined before
 		{
-			if (empty($this->relation->through) && count($this->relation->foreignKey) === count($this->_parent->_pkAlias)) {
+			if (empty($this->relation->through) && count((array)$this->relation->foreignKey) === count((array)$this->_parent->_pkAlias)) {
 				$query            = new CJoinQuery($this);
 				$this->_joined    = true;
 				$query->selects   = array(); // reset to not receive the extra keys

@@ -341,7 +341,6 @@ class HTMLPurifier_Printer_ConfigForm_default extends HTMLPurifier_Printer
         }
         if ($type === HTMLPurifier_VarParser::C_MIXED) {
             return 'Not supported';
-            $value = serialize($value);
         }
         $attr = array(
             'name' => "$name" . "[$ns.$directive]",

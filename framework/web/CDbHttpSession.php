@@ -262,9 +262,13 @@ class CDbHttpSession extends CHttpSession
 					'expire'=>$expire
 				),'id=:id',array(':id'=>$id));
 		}
+        // не ошибка так как выводит информацию только с включенным дебаг режимом для разработчика
+        // appchecker CWE-209
 		catch(Exception $e)
 		{
 			if(YII_DEBUG)
+                // не ошибка так как выводит информацию только с включенным дебаг режимом для разработчика
+                // appchecker CWE-209
 				echo $e->getMessage();
 			// it is too late to log an error message here
 			return false;

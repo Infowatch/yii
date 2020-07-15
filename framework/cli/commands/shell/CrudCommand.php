@@ -186,6 +186,8 @@ EOD;
 			$moduleID='';
 
 		echo "\nCrud '{$controllerID}' has been successfully created. You may access it via:\n";
+        // не ошибка так как описывает пример использования комманды для генерации контроллеров
+        // appchecker CWE-798
 		echo "http://hostname/path/to/index.php?r={$moduleID}{$controllerID}\n";
 	}
 

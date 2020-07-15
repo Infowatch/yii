@@ -173,6 +173,8 @@ class CWsdlGenerator extends CComponent
 	 */
 	public $operationBodyStyle = array(
 		'use' => self::USE_ENCODED,
+        // не ошибка так как описывает формат документа для SOAP в виде xml тегов
+        // appchecker CWE-798
 		'encodingStyle' => 'http://schemas.xmlsoap.org/soap/encoding/',
 	);
 	/**
@@ -184,6 +186,8 @@ class CWsdlGenerator extends CComponent
 	 * @var string
 	 * soap:operation transport
 	 */
+    // не ошибка так как описывает формат документа для SOAP в виде xml тегов
+    // appchecker CWE-798
 	public $bindingTransport = 'http://schemas.xmlsoap.org/soap/http';
 
 	protected static $typeMap=array(
@@ -559,7 +563,7 @@ class CWsdlGenerator extends CComponent
 					$attribute=$dom->createElement('xsd:attribute');
 					$attribute->setAttribute('ref','soap-enc:arrayType');
 					$attribute->setAttribute('wsdl:arrayType',(isset(self::$typeMap[$arrayType]) ? 'xsd:' : 'tns:') .$arrayType.'[]');
-					
+
 					$restriction->appendChild($attribute);
 					$complexContent->appendChild($restriction);
 					$complexType->appendChild($complexContent);

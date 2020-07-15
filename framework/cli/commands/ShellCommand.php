@@ -138,9 +138,13 @@ EOD;
 					echo $evalResult;
 				}
 			}
+            // не ошибка так как выводит информацию только с включеным дебаг режимом для разработчика
+            // appchecker CWE-209
 			catch(Exception $e)
 			{
 				if($e instanceof ShellException)
+                    // не ошибка так как выводит информацию только при неверном запуске из под коммандной строки
+                    // appchecker CWE-209
 					echo $e->getMessage();
 				else
 					echo $e;

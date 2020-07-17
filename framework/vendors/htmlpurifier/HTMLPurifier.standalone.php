@@ -16984,6 +16984,8 @@ class HTMLPurifier_HTMLModule_SafeObject extends HTMLPurifier_HTMLModule
                 'data' => 'URI#embedded',
                 'codebase' => new HTMLPurifier_AttrDef_Enum(
                     array(
+                        // не ошибка так как описывает стандартный путь для флеш плеера если он не установлен
+                        // appchecker CWE-798
                         'http://download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=6,0,40,0'
                     )
                 ),

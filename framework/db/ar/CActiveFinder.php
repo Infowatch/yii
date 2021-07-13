@@ -448,6 +448,7 @@ class CJoinElement
                 } else {
                     $query = new CJoinQuery($this);
                     $this->_joined = true;
+                    $query->hints = $this->relation->hints;
                     $query->selects = []; // reset to not receive the extra keys
                     $query->selects[] = $this->getColumnSelect($this->relation->select);
                     $query->selects[] = $this->getRelationsKeys();
@@ -490,6 +491,7 @@ class CJoinElement
         }
         $query            = new CJoinQuery($this);
         $this->_joined    = true;
+        $query->hints     = $this->relation->hints;
         $query->selects   = []; // reset to not receive the extra keys
         $query->selects[] = $this->getColumnSelect($this->relation->select);
         $query->selects[] = $this->getRelationsKeys();
@@ -605,6 +607,7 @@ class CJoinElement
 		$query->conditions=array(
 			$child->relation->on,
 		);
+        $query->hints=$child->relation->hints;
 		$query->groups[]=$child->relation->group;
 		$query->joins[]=$child->relation->join;
 		$query->havings[]=$child->relation->having;
@@ -1472,11 +1475,12 @@ class CJoinQuery
 		$sql='SELECT ';
 		if($this->hints)
 		{
-			$sql.='/*+';
-			foreach($this->hints as $hint)
-			{
-				$sql.=$hint.' ';
-			}
+            $this->hints = array_unique((array)$this->hints);
+            $sql.='/*+';
+            foreach($this->hints as $hint)
+            {
+                $sql.=$hint.' ';
+            }
 			$sql.='*/ ';
 		}
 

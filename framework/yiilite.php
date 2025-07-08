@@ -41,7 +41,7 @@ class YiiBase
 	private static $_logger;
 	public static function getVersion()
 	{
-		return '1.1.27-dev';
+		return '1.1.32-dev';
 	}
 	public static function createWebApplication($config=null)
 	{
@@ -1345,8 +1345,8 @@ abstract class CApplication extends CModule
 	}
 	public function setLocaleDataPath($value)
 	{
-		$property=new ReflectionProperty($this->localeClass,'dataPath');
-		$property->setValue($value);
+		$class=new ReflectionClass($this->localeClass);
+		$class->setStaticPropertyValue('dataPath',$value);
 	}
 	public function getNumberFormatter()
 	{
@@ -1607,7 +1607,7 @@ abstract class CApplication extends CModule
 		if(YII_DEBUG)
 		{
 			echo "<h1>PHP Error [$code]</h1>\n";
-			echo "<p>$message ($file:$line)</p>\n";
+			echo "<p>".nl2br($this->htmlEncodeInternal($message))." (".$this->htmlEncodeInternal($file).":$line)</p>\n";
 			echo '<pre>';
 			$trace=debug_backtrace();
 			// skip the first 2 stacks as they are always irrelevant
@@ -1631,7 +1631,7 @@ abstract class CApplication extends CModule
 		else
 		{
 			echo "<h1>PHP Error [$code]</h1>\n";
-			echo "<p>$message</p>\n";
+			echo "<p>".nl2br($this->htmlEncodeInternal($message))."</p>\n";
 		}
 	}
 	public function displayException($exception)
@@ -1639,14 +1639,18 @@ abstract class CApplication extends CModule
 		if(YII_DEBUG)
 		{
 			echo '<h1>'.get_class($exception)."</h1>\n";
-			echo '<p>'.$exception->getMessage().' ('.$exception->getFile().':'.$exception->getLine().')</p>';
-			echo '<pre>'.$exception->getTraceAsString().'</pre>';
+			echo '<p>'.nl2br($this->htmlEncodeInternal($exception->getMessage())).' ('.$this->htmlEncodeInternal($exception->getFile()).':'.$exception->getLine().')</p>';
+			echo '<pre>'.$this->htmlEncodeInternal($exception->getTraceAsString()).'</pre>';
 		}
 		else
 		{
 			echo '<h1>'.get_class($exception)."</h1>\n";
-			echo '<p>'.$exception->getMessage().'</p>';
+			echo '<p>'.nl2br($this->htmlEncodeInternal($exception->getMessage())).'</p>';
 		}
+	}
+	private function htmlEncodeInternal($string)
+	{
+		return htmlspecialchars($string, ENT_NOQUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8');
 	}
 	protected function initSystemHandlers()
 	{
@@ -2553,8 +2557,21 @@ class CHttpRequest extends CApplicationComponent
 		}
 		else
 		{
-			return utf8_encode($pathInfo);
+			return $this->utf8Encode($pathInfo);
 		}
+	}
+	private function utf8Encode($s)
+	{
+		$s.=$s;
+		$len=strlen($s);
+		for ($i=$len>>1,$j=0; $i<$len; ++$i,++$j) {
+			switch (true) {
+				case $s[$i] < "\x80": $s[$j] = $s[$i]; break;
+				case $s[$i] < "\xC0": $s[$j] = "\xC2"; $s[++$j] = $s[$i]; break;
+				default: $s[$j] = "\xC3"; $s[++$j] = chr(ord($s[$i]) - 64); break;
+			}
+		}
+		return substr($s, 0, $j);
 	}
 	public function getRequestUri()
 	{
@@ -4198,11 +4215,10 @@ abstract class CAction extends CComponent implements IAction
 			$name=$param->getName();
 			if(isset($params[$name]))
 			{
-				if(version_compare(PHP_VERSION,'8.0','>=')) {
-					$isArray=$param->getType() && $param->getType()->getName()==='array';
-				} else {
+				if(version_compare(PHP_VERSION,'8.0','>='))
+					$isArray=($type=$param->getType()) instanceof \ReflectionNamedType && $type->getName()==='array';
+				else
 					$isArray=$param->isArray();
-                }
 				if($isArray)
 					$ps[]=is_array($params[$name]) ? $params[$name] : array($params[$name]);
 				elseif(!is_array($params[$name]))
@@ -4326,7 +4342,7 @@ class CWebUser extends CApplicationComponent implements IWebUser
 				if($this->identityCookie!==null)
 				{
 					$cookie=$this->createIdentityCookie($this->getStateKeyPrefix());
-					$cookie->value=null;
+					$cookie->value='';
 					$cookie->expire=0;
 					Yii::app()->getRequest()->getCookies()->add($cookie->name,$cookie);
 				}
@@ -5915,7 +5931,7 @@ EOD;
 	public static function value($model,$attribute,$defaultValue=null)
 	{
 		if(is_scalar($attribute) || $attribute===null)
-			foreach(explode('.',$attribute) as $name)
+			foreach(explode('.',(string)$attribute) as $name)
 			{
 				if(is_object($model))
 				{
@@ -10443,9 +10459,9 @@ class CStringValidator extends CValidator
 			return;
 		}
 		if(function_exists('mb_strlen') && $this->encoding!==false)
-			$length=mb_strlen($value, $this->encoding ? $this->encoding : Yii::app()->charset);
+			$length=mb_strlen((string)$value, $this->encoding ? $this->encoding : Yii::app()->charset);
 		else
-			$length=strlen($value);
+			$length=strlen((string)$value);
 		if($this->min!==null && $length<$this->min)
 		{
 			$message=$this->tooShort!==null?$this->tooShort:Yii::t('yii','{attribute} is too short (minimum is {min} characters).');
